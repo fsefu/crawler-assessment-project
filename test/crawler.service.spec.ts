@@ -23,7 +23,6 @@ describe('CrawlerService', () => {
   });
 
   it('should call createWorker on module init', () => {
-    // onModuleInit registers the worker processor
     service.onModuleInit();
     expect(queue.createWorker).toHaveBeenCalled();
   });
@@ -37,28 +36,36 @@ describe('CrawlerService', () => {
   it('processJob should extract data correctly', async () => {
     mockedAxios.get.mockResolvedValue({
       data: '<html><head><title>Test</title><meta name="description" content="desc"><link rel="icon" href="/favicon.ico"></head><body><script src="/a.js"></script><link rel="stylesheet" href="/a.css"><img src="/img.png"></body></html>',
+      headers: { 'content-type': 'text/html' },
     });
 
     const result = await (service as any).processJob({
       data: { url: 'https://example.com' },
     });
+
+    // If you implemented absolute URL resolution the results will be absolute:
     expect(result.title).toBe('Test');
     expect(result.metaDescription).toBe('desc');
-    expect(result.favicon).toBe('/favicon.ico');
-    expect(result.scripts).toContain('/a.js');
-    expect(result.styles).toContain('/a.css');
-    expect(result.images).toContain('/img.png');
+
+    // If your code still returns raw attr values, change these expectations to '/favicon.ico' etc.
+    expect(result.favicon).toBe('https://example.com/favicon.ico');
+    expect(result.scripts).toContain('https://example.com/a.js');
+    expect(result.styles).toContain('https://example.com/a.css');
+    expect(result.images).toContain('https://example.com/img.png');
     expect(result.url).toBe('https://example.com');
   });
 
   it('processJob should prefer data-src when src missing', async () => {
     mockedAxios.get.mockResolvedValue({
       data: '<html><body><img data-src="/lazy.png"></body></html>',
+      headers: { 'content-type': 'text/html' },
     });
+
     const result = await (service as any).processJob({
       data: { url: 'https://example.com' },
     });
-    expect(result.images).toContain('/lazy.png');
+
+    expect(result.images).toContain('https://example.com/lazy.png');
   });
 
   it('processJob should throw when url missing in job', async () => {

@@ -37,7 +37,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
     // separate connection used by the Worker (blocking commands)
     this.workerConnection = new IORedis(redisOpts);
 
-    this.queue = new Queue('crawl-queue', {
+    this.queue = new Queue(config.queueName, {
       connection: this.clientConnection,
       prefix: config.queuePrefix,
     });
@@ -68,14 +68,18 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
       console.warn('error quitting workerConnection', err);
     }
   }
-
-  async addJob(name: string, data: any) {
-    const job = await this.queue.add(name, data, {
-      removeOnComplete: false,
-      removeOnFail: false,
-    });
-    return job;
-  }
+async addJob(name: string, data: any) {
+  const job = await this.queue.add(name, data, {
+    removeOnComplete: process.env.REMOVE_ON_COMPLETE === 'true' ? true : 1000,
+    removeOnFail: process.env.REMOVE_ON_FAIL === 'true' ? true : 1000,
+    attempts: parseInt(process.env.JOB_ATTEMPTS || '3', 10),
+    backoff: {
+      type: 'exponential',
+      delay: 1000,
+    },
+  });
+  return job;
+}
 
   async getJob(id: string) {
     return this.queue.getJob(id);
@@ -90,7 +94,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
 
   createWorker(processFn: (job: Job) => Promise<any>) {
     // Use the workerConnection here (must have maxRetriesPerRequest: null)
-    this.worker = new Worker('crawl-queue', async (job) => processFn(job), {
+    this.worker = new Worker(config.queueName, async (job) => processFn(job), {
       connection: this.workerConnection,
       prefix: config.queuePrefix,
     });

@@ -8,6 +8,7 @@ Drop this `README.md` into your repo and paste the contents as-is.
 ## Quick overview
 
 Features
+
 - `POST /crawl` — enqueue a crawl job for a URL (uses Axios + Cheerio to extract data).
 - `GET /status/:id` — check job status and, when finished, view the crawl result.
 - `DELETE /cancel/:id` — cancel/remove a crawl job.
@@ -34,8 +35,8 @@ This project intentionally keeps the crawler logic minimal and easy to extend (e
 1. Clone the repo and install dependencies
 
 ```bash
-git clone https://github.com/fsefu/crawler-assessment-project
-cd crawler-assessment-project
+git clone <your-repo-url>
+cd <repo>
 npm install
 ```
 
@@ -78,10 +79,10 @@ services:
     image: redis:7-alpine
     container_name: nestjs-crawler-redis
     ports:
-      - "6379:6379"
-    command: ["redis-server", "--appendonly", "no"]
+      - '6379:6379'
+    command: ['redis-server', '--appendonly', 'no']
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -102,24 +103,21 @@ If your Redis is password-protected, set `REDIS_PASSWORD` in `.env`.
 Create `.env` from the example file. Example content:
 
 ```
-# App port (default: 3000)
 PORT=3000
-
-# Redis connection (for BullMQ queues)
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
-REDIS_PASSWORD=your_redis_password_here  # Replace with a strong password or leave empty if no auth
-
-# BullMQ queue config
+REDIS_PASSWORD=
 QUEUE_PREFIX=nestjs-crawler
 QUEUE_NAME=crawl-queue
-
-# Optional: Disable worker creation in dev/test if Redis isn't running
-# Set to 'true' to skip queue workers
-DISABLE_QUEUE_WORKER=false
+AXIOS_TIMEOUT=15000
+USER_AGENT=Mozilla/5.0 (compatible; NestCrawler/1.0)
+REMOVE_ON_COMPLETE=true
+REMOVE_ON_FAIL=true
+JOB_ATTEMPTS=3
 ```
 
 **Notes**
+
 - `REDIS_PASSWORD` — set if your Redis requires AUTH. If you get `ReplyError: NOAUTH Authentication required.` set this.
 - `QUEUE_NAME` and `QUEUE_PREFIX` ensure queues do not collide when multiple apps share a Redis instance.
 - `AXIOS_TIMEOUT` and `USER_AGENT` are used by the crawler HTTP client.
@@ -129,6 +127,7 @@ DISABLE_QUEUE_WORKER=false
 ## API
 
 ### Swagger
+
 Open Swagger UI at:
 
 ```
@@ -138,13 +137,14 @@ http://localhost:3000/api
 ### Endpoints
 
 #### POST `/crawl`
+
 Enqueue a crawl job.
 
 Request body (JSON):
 
 ```json
 {
-  "url": "https://www.themoviedb.org/"
+  "url": "https://example.com"
 }
 ```
 
@@ -158,6 +158,7 @@ Response:
 ```
 
 #### GET `/status/:id`
+
 Get job metadata and result once completed.
 
 Response (when completed):
@@ -166,7 +167,7 @@ Response (when completed):
 {
   "id": "job-id",
   "name": "crawl",
-  "data": { "url": "https://www.themoviedb.org/" },
+  "data": { "url": "https://example.com" },
   "state": "completed",
   "attemptsMade": 0,
   "finishedOn": 1690000000000,
@@ -174,16 +175,17 @@ Response (when completed):
   "result": {
     "title": "Example",
     "metaDescription": "desc",
-    "favicon": "https://www.themoviedb.org//favicon.ico",
-    "scripts": ["https://www.themoviedb.org//a.js"],
-    "styles": ["https://www.themoviedb.org//a.css"],
-    "images": ["https://www.themoviedb.org//img.png"],
-    "url": "https://www.themoviedb.org/"
+    "favicon": "https://example.com/favicon.ico",
+    "scripts": ["https://example.com/a.js"],
+    "styles": ["https://example.com/a.css"],
+    "images": ["https://example.com/img.png"],
+    "url": "https://example.com"
   }
 }
 ```
 
 #### DELETE `/cancel/:id`
+
 Cancel and remove job.
 
 Response:
@@ -214,22 +216,31 @@ Response:
 
 ## Tests
 
-Run unit tests:
+Run all tests (unit + e2e) with coverage:
 
 ```bash
 npm test
 ```
 
-Run e2e tests:
+Run unit tests only (fast, no Redis required):
 
 ```bash
-# make sure Redis is running (docker-compose up -d), then:
-npm run test:e2e
+npm run test:unit
+# Equivalent: npx jest --testPathPatterns "test/.*\.spec\.ts$"
 ```
 
-If your test scripts differ, adjust these commands to your `package.json` scripts.
+Run e2e tests (uses the e2e test pattern defined in jest.config.js or the script):
 
----
+```bash
+npm run test:e2e
+# Or run a single e2e file directly:
+# npx jest test/app.e2e-spec.ts --runInBand
+```
+
+**Notes**
+
+- The e2e test suite in this repo mocks `QueueService` by default so Redis is not required for the tests included here. If you want a true integration test that uses Redis and real workers, start Redis (`docker compose up -d`) and remove the QueueService mock in the test file.
+- If you encounter Jest CLI warnings about `testPathPattern`, make sure your `package.json` scripts use `--testPathPatterns` (plural) or add the patterns to `jest.config.js`.
 
 ## Common troubleshooting
 
@@ -272,6 +283,7 @@ Recommended items to finish before marking Part 1 as complete:
 ## Extending to Part 2 (brief)
 
 When moving to Part 2 you will:
+
 - Add Puppeteer-based browsing (headless) to render JS-heavy pages.
 - Implement rotating user agents and rotating proxies (read proxy settings from env).
 - Add rate limiting / concurrency per target host and proxy pool management.
@@ -298,6 +310,7 @@ Add these scripts if you don't have equivalents:
 ## Contributing
 
 If you want me to:
+
 - produce PR-style patches for the suggested code fixes,
 - implement missing tests (`QueueService`, improved `processJob` tests),
 - create `docker-compose.yml` + `.env.example` files,
