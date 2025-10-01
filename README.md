@@ -111,7 +111,7 @@ QUEUE_PREFIX=nestjs-crawler
 QUEUE_NAME=crawl-queue
 AXIOS_TIMEOUT=15000
 USER_AGENT=Mozilla/5.0 (compatible; NestCrawler/1.0)
-REMOVE_ON_COMPLETE=true
+REMOVE_ON_COMPLETE=flase
 REMOVE_ON_FAIL=true
 JOB_ATTEMPTS=3
 ```
