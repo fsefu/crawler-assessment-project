@@ -16,11 +16,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
       host: config.redis.host,
       port: config.redis.port,
       password: config.redis.password,
-      // THIS IS THE IMPORTANT PART:
-      // BullMQ requires null for blocking commands (workers).
       maxRetriesPerRequest: null,
-      // optional: lazy connect if you want to delay connection until needed:
-      // lazyConnect: true,
     };
 
     console.log('[QueueService] Redis config:', {
@@ -93,7 +89,6 @@ async addJob(name: string, data: any) {
   }
 
   createWorker(processFn: (job: Job) => Promise<any>) {
-    // Use the workerConnection here (must have maxRetriesPerRequest: null)
     this.worker = new Worker(config.queueName, async (job) => processFn(job), {
       connection: this.workerConnection,
       prefix: config.queuePrefix,
