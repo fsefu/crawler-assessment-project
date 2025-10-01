@@ -18,7 +18,15 @@ export interface AppConfig {
   queuePrefix: string;
   queueName: string;
   axiosTimeout: number; // ms
-  userAgent: string;
+  userAgent: string; // fallback UA single string
+  usePuppeteer: boolean;
+  proxyList: string[]; // list of proxies (host:port or with auth)
+  proxyRotation: boolean;
+  userAgents: string[]; // list of UAs to rotate
+  maxConcurrency: number; // worker concurrency
+  rateLimitRequests: number; // number of requests per interval
+  rateLimitIntervalMs: number; // interval window (ms)
+  jobTimeoutMs: number;
 }
 
 /** small helper that parses an integer env var with fallback */
@@ -29,6 +37,12 @@ function parseIntEnv(name: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function parseBoolEnv(name: string, fallback: boolean): boolean {
+  const v = process.env[name];
+  if (!v) return fallback;
+  return v === 'true' || v === '1';
+}
+
 const cfg: AppConfig = {
   port: parseIntEnv('PORT', 3000),
   redis: {
@@ -36,13 +50,25 @@ const cfg: AppConfig = {
     port: parseIntEnv('REDIS_PORT', 6379),
     password: process.env.REDIS_PASSWORD || undefined,
   },
-  // prefix used by BullMQ (helps keep multiple apps using same Redis separate)
   queuePrefix: process.env.QUEUE_PREFIX || 'nestjs-crawler',
-  // the actual queue name used in QueueService / Worker
   queueName: process.env.QUEUE_NAME || 'crawl-queue',
   axiosTimeout: parseIntEnv('AXIOS_TIMEOUT', 15000),
   userAgent:
     process.env.USER_AGENT || 'Mozilla/5.0 (compatible; NestCrawler/1.0)',
+  usePuppeteer: parseBoolEnv('USE_PUPPETEER', false),
+  proxyList: (process.env.PROXY_LIST || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
+  proxyRotation: parseBoolEnv('PROXY_ROTATION', true),
+  userAgents: (process.env.USER_AGENTS || '')
+    .split('|')
+    .map((s) => s.trim())
+    .filter(Boolean),
+  maxConcurrency: parseIntEnv('MAX_CONCURRENCY', 3),
+  rateLimitRequests: parseIntEnv('RATE_LIMIT_REQUESTS', 10),
+  rateLimitIntervalMs: parseIntEnv('RATE_LIMIT_INTERVAL_MS', 1000),
+  jobTimeoutMs: parseIntEnv('JOB_TIMEOUT_MS', 120000),
 };
 
 /**
