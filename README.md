@@ -1,98 +1,315 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# NestJS Crawler
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A simple, configurable web crawler built with NestJS that demonstrates Axios + Cheerio scraping, BullMQ (Redis) job queueing, Swagger API docs and Jest tests.  
+Drop this `README.md` into your repo and paste the contents as-is.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## Quick overview
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Features
+- `POST /crawl` — enqueue a crawl job for a URL (uses Axios + Cheerio to extract data).
+- `GET /status/:id` — check job status and, when finished, view the crawl result.
+- `DELETE /cancel/:id` — cancel/remove a crawl job.
+- Swagger UI at `/api`.
+- BullMQ + ioredis for queueing and background workers.
+- Jest unit tests + basic e2e tests included.
+- Config driven (see `.env.example`).
 
-## Project setup
+This project intentionally keeps the crawler logic minimal and easy to extend (e.g. Puppeteer / proxies for Part 2).
 
-```bash
-$ npm install
-```
+---
 
-## Compile and run the project
+## Prerequisites
 
-```bash
-# development
-$ npm run start
+- Node.js (tested with **v24.4.0** — your environment may work with other Node 18/20/24 versions)
+- npm or pnpm/yarn
+- Docker (recommended for running Redis in development)
+- Redis (v6/7) — required for BullMQ
 
-# watch mode
-$ npm run start:dev
+---
 
-# production mode
-$ npm run start:prod
-```
+## Quick start (development)
 
-## Run tests
+1. Clone the repo and install dependencies
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+git clone https://github.com/fsefu/crawler-assessment-project
+cd crawler-assessment-project
+npm install
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+2. Copy environment vars
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+cp .env.example .env
+# edit .env if you need to change defaults
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+3. Start Redis (recommended via Docker Compose)
 
-## Resources
+Create `docker-compose.yml` (see the provided example below) and run:
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+docker compose up -d
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+4. Start the app (development)
 
-## Support
+```bash
+npm run start:dev
+# or for production:
+# npm run build
+# npm run start:prod
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+By default the server starts on the port configured in `.env` (3000 by default). Swagger UI will be available at `http://localhost:3000/api`.
 
-## Stay in touch
+---
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Docker Compose (example)
+
+Save this as `docker-compose.yml` in the repo root:
+
+```yaml
+version: '3.8'
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: nestjs-crawler-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+```
+
+Run:
+
+```bash
+docker compose up -d
+```
+
+If your Redis is password-protected, set `REDIS_PASSWORD` in `.env`.
+
+---
+
+## Environment variables (`.env.example`)
+
+Create `.env` from the example file. Example content:
+
+```
+# App port (default: 3000)
+PORT=3000
+
+# Redis connection (for BullMQ queues)
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_PASSWORD=your_redis_password_here  # Replace with a strong password or leave empty if no auth
+
+# BullMQ queue config
+QUEUE_PREFIX=nestjs-crawler
+QUEUE_NAME=crawl-queue
+
+# Optional: Disable worker creation in dev/test if Redis isn't running
+# Set to 'true' to skip queue workers
+DISABLE_QUEUE_WORKER=false
+```
+
+**Notes**
+- `REDIS_PASSWORD` — set if your Redis requires AUTH. If you get `ReplyError: NOAUTH Authentication required.` set this.
+- `QUEUE_NAME` and `QUEUE_PREFIX` ensure queues do not collide when multiple apps share a Redis instance.
+- `AXIOS_TIMEOUT` and `USER_AGENT` are used by the crawler HTTP client.
+
+---
+
+## API
+
+### Swagger
+Open Swagger UI at:
+
+```
+http://localhost:3000/api
+```
+
+### Endpoints
+
+#### POST `/crawl`
+Enqueue a crawl job.
+
+Request body (JSON):
+
+```json
+{
+  "url": "https://www.themoviedb.org/"
+}
+```
+
+Response:
+
+```json
+{
+  "id": "job-id",
+  "status": "waiting" // or queued/active/completed/failed
+}
+```
+
+#### GET `/status/:id`
+Get job metadata and result once completed.
+
+Response (when completed):
+
+```json
+{
+  "id": "job-id",
+  "name": "crawl",
+  "data": { "url": "https://www.themoviedb.org/" },
+  "state": "completed",
+  "attemptsMade": 0,
+  "finishedOn": 1690000000000,
+  "processedOn": 1690000000000,
+  "result": {
+    "title": "Example",
+    "metaDescription": "desc",
+    "favicon": "https://www.themoviedb.org//favicon.ico",
+    "scripts": ["https://www.themoviedb.org//a.js"],
+    "styles": ["https://www.themoviedb.org//a.css"],
+    "images": ["https://www.themoviedb.org//img.png"],
+    "url": "https://www.themoviedb.org/"
+  }
+}
+```
+
+#### DELETE `/cancel/:id`
+Cancel and remove job.
+
+Response:
+
+```json
+{
+  "id": "job-id",
+  "cancelled": true
+}
+```
+
+---
+
+## How the crawler works (summary)
+
+- Incoming `POST /crawl` adds a job to a BullMQ queue (`QUEUE_NAME`).
+- A Worker (created by `QueueService`) processes jobs with the `CrawlerService.processJob()` function.
+- `processJob()` uses Axios to fetch the page and Cheerio to parse:
+  - `<title>`
+  - meta description (`meta[name="description"]` or `og:description`)
+  - favicon (common `<link rel=...>` patterns)
+  - script `src` URLs
+  - stylesheet `href` URLs
+  - image `src` / `data-src` URLs
+- Results are returned as the Job result and visible in `GET /status/:id`.
+
+---
+
+## Tests
+
+Run unit tests:
+
+```bash
+npm test
+```
+
+Run e2e tests:
+
+```bash
+# make sure Redis is running (docker-compose up -d), then:
+npm run test:e2e
+```
+
+If your test scripts differ, adjust these commands to your `package.json` scripts.
+
+---
+
+## Common troubleshooting
+
+- `ReplyError: NOAUTH Authentication required.` — set `REDIS_PASSWORD` in `.env` to the Redis password.
+- Worker not running / jobs stuck — ensure the Nest app is running a worker (the worker is created on app start via `CrawlerService.onModuleInit`) and Redis is reachable at `REDIS_HOST:REDIS_PORT`.
+- Jobs not removed — check `REMOVE_ON_COMPLETE` / `REMOVE_ON_FAIL` env vars; default behavior in this repo may keep job history for debugging.
+
+---
+
+## Security & production considerations
+
+**Important before exposing this service publicly:**
+
+1. **SSRF protection** — validate `url` input and disallow private IP ranges (127.0.0.1, 10.x, 172.16.x, 192.168.x). Optionally maintain an allowlist.
+2. **Rate limiting / authentication** — limit requests per client (per IP or API key). Use NestJS `@nestjs/throttler` or an API gateway.
+3. **Crawl politeness** — consider robots.txt checks and rate-limiting per host.
+4. **Resource caps** — limit worker concurrency and job payload sizes.
+5. **Job lifecycle** — configure `removeOnComplete` to avoid unlimited growth of job records in Redis, or persist results to a DB and prune jobs.
+6. **Proxy / headless browsing** — for Part 2, integrate Puppeteer with rotating user agents and proxies (configure via env variables).
+7. **Logging & monitoring** — log job lifecycle events and expose metrics for alerting.
+
+---
+
+## Development notes & TODO (Part 1 -> ready checklist)
+
+Recommended items to finish before marking Part 1 as complete:
+
+- [ ] Use `config.queueName` everywhere (no hard-coded queue identifiers).
+- [ ] Use configured `AXIOS_TIMEOUT` and `USER_AGENT`.
+- [ ] Resolve relative URLs to absolute URLs (so assets are usable outside the origin page).
+- [ ] Deduplicate and cap arrays (scripts, styles, images) to avoid huge responses.
+- [ ] Improve favicon detection (apple-touch-icon, mask-icon, manifest, msapplication).
+- [ ] Add input validation and SSRF protections (deny private IPs).
+- [ ] Add README (`this file`) and `.env.example`.
+- [ ] Add `docker-compose.yml` for easy Redis startup.
+- [ ] Add tests for `QueueService` + worker behavior and integration tests that exercise enqueue → worker → completion.
+
+---
+
+## Extending to Part 2 (brief)
+
+When moving to Part 2 you will:
+- Add Puppeteer-based browsing (headless) to render JS-heavy pages.
+- Implement rotating user agents and rotating proxies (read proxy settings from env).
+- Add rate limiting / concurrency per target host and proxy pool management.
+- Ensure tests mock Puppeteer or run in a controlled environment.
+
+---
+
+## Example `package.json` scripts (recommended)
+
+Add these scripts if you don't have equivalents:
+
+```json
+"scripts": {
+  "start": "node dist/main.js",
+  "start:dev": "nest start --watch",
+  "build": "nest build",
+  "test": "jest --coverage",
+  "test:e2e": "jest --config ./test/jest-e2e.json"
+}
+```
+
+---
+
+## Contributing
+
+If you want me to:
+- produce PR-style patches for the suggested code fixes,
+- implement missing tests (`QueueService`, improved `processJob` tests),
+- create `docker-compose.yml` + `.env.example` files,
+
+tell me which one and I’ll generate those files/patches for you.
+
+---
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Add a license file to your repo (e.g. `MIT`) or replace this section with your chosen license.
+
+---
+
+Thanks — paste this into your repo as `README.md`. If you want, I can now generate the `.env.example`, `docker-compose.yml`, and exact code patches for the `CrawlerService` and `QueueService` files to match the README recommendations. Which of those should I create next?
