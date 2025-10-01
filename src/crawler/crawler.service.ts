@@ -3,13 +3,27 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { QueueService } from '../queue/queue.service';
 import { Job } from 'bullmq';
+import config from '../config';
+
+function makeAbsolute(base: string, link?: string | null) {
+  if (!link) return null;
+  try {
+    return new URL(link, base).toString();
+  } catch {
+    return link; // if malformed, return original
+  }
+}
+
+function uniqAndLimit(arr: string[], max = 200) {
+  const out = Array.from(new Set(arr.filter(Boolean)));
+  return out.slice(0, max);
+}
 
 @Injectable()
 export class CrawlerService implements OnModuleInit {
   constructor(private readonly queueService: QueueService) {}
 
   onModuleInit() {
-    // register worker processor
     this.queueService.createWorker(async (job: Job) => {
       return this.processJob(job);
     });
@@ -46,51 +60,73 @@ export class CrawlerService implements OnModuleInit {
     const { url } = job.data;
     if (!url) throw new Error('Missing URL');
 
+    // use config values
     const resp = await axios.get(url, {
-      timeout: 15000,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NestCrawler/1.0)' },
+      timeout: config.axiosTimeout,
+      headers: { 'User-Agent': config.userAgent },
+      // optionally: maxRedirects: 5
     });
+
+    const contentType = resp.headers?.['content-type'] || '';
+    if (!contentType.includes('text/html')) {
+      throw new Error(`Unsupported content-type: ${contentType}`);
+    }
+
     const html = resp.data;
     const $ = cheerio.load(html);
 
     const title = ($('title').first().text() || '').trim();
-    const metaDescription = (
-      $('meta[name="description"]').attr('content') || ''
-    ).trim();
+    const metaDescription =
+      ($('meta[name="description"]').attr('content') ||
+        $('meta[property="og:description"]').attr('content') ||
+        ''
+      ).trim();
+
+    // improved favicon detection
     const favicon =
-      $('link[rel~="icon"]').attr('href') ||
-      $('link[rel="shortcut icon"]').attr('href') ||
-      null;
+      makeAbsolute(
+        url,
+        $('link[rel~="icon"]').attr('href') ||
+          $('link[rel="shortcut icon"]').attr('href') ||
+          $('link[rel="apple-touch-icon"]').attr('href') ||
+          $('link[rel="mask-icon"]').attr('href') ||
+          $('link[rel="icon shortcut"]').attr('href') ||
+          $('link[rel="manifest"]').attr('href') ||
+          $('meta[name="msapplication-TileImage"]').attr('content') ||
+          null,
+      ) || null;
 
     const scripts: string[] = [];
     $('script[src]').each((_, el) => {
       const src = $(el).attr('src');
-      if (src) scripts.push(src);
+      const abs = makeAbsolute(url, src);
+      if (abs) scripts.push(abs);
     });
 
     const styles: string[] = [];
     $('link[rel="stylesheet"]').each((_, el) => {
       const href = $(el).attr('href');
-      if (href) styles.push(href);
+      const abs = makeAbsolute(url, href);
+      if (abs) styles.push(abs);
     });
 
     const images: string[] = [];
     $('img').each((_, el) => {
       const src = $(el).attr('src') || $(el).attr('data-src');
-      if (src) images.push(src);
+      const abs = makeAbsolute(url, src);
+      if (abs) images.push(abs);
     });
 
     const result = {
       title,
       metaDescription,
       favicon,
-      scripts,
-      styles,
-      images,
+      scripts: uniqAndLimit(scripts, 500),
+      styles: uniqAndLimit(styles, 500),
+      images: uniqAndLimit(images, 2000),
       url,
     };
 
-    // Return value stored as job result
     return result;
   }
 }
