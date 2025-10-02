@@ -1,0 +1,30 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: nestjs-crawler-redis
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      target: runtime
+    image: nestjs-crawler:latest
+    container_name: nestjs-crawler-app
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    environment:
+      REDIS_HOST: redis
+      PUPPETEER_HEADLESS: 'true'
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    tty: true

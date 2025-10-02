@@ -12,6 +12,11 @@ const mockQueueService = {
   getJob: jest.fn().mockResolvedValue(null),
   removeJob: jest.fn().mockResolvedValue(true),
   createWorker: jest.fn(), // worker creation is noop in tests
+  // Added mocks for Part 2 features so the app can boot cleanly in tests:
+  getStoredResult: jest.fn().mockResolvedValue(null),
+  setCancelFlag: jest.fn().mockResolvedValue(undefined),
+  isCancelled: jest.fn().mockResolvedValue(false),
+  storeJobResult: jest.fn().mockResolvedValue(undefined),
 };
 
 describe('AppController (e2e)', () => {

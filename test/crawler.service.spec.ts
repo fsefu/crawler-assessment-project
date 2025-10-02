@@ -18,6 +18,11 @@ describe('CrawlerService', () => {
       createWorker: jest.fn(),
       getJob: jest.fn(),
       removeJob: jest.fn().mockResolvedValue(true),
+      // Added mocks for part 2 features:
+      getStoredResult: jest.fn().mockResolvedValue(null),
+      setCancelFlag: jest.fn().mockResolvedValue(undefined),
+      isCancelled: jest.fn().mockResolvedValue(false),
+      storeJobResult: jest.fn().mockResolvedValue(undefined),
     };
     service = new CrawlerService(queue as QueueService);
   });
@@ -43,11 +48,8 @@ describe('CrawlerService', () => {
       data: { url: 'https://example.com' },
     });
 
-    // If you implemented absolute URL resolution the results will be absolute:
     expect(result.title).toBe('Test');
     expect(result.metaDescription).toBe('desc');
-
-    // If your code still returns raw attr values, change these expectations to '/favicon.ico' etc.
     expect(result.favicon).toBe('https://example.com/favicon.ico');
     expect(result.scripts).toContain('https://example.com/a.js');
     expect(result.styles).toContain('https://example.com/a.css');
@@ -81,15 +83,37 @@ describe('CrawlerService', () => {
     ).rejects.toThrow('network error');
   });
 
-  it('getStatus should return null when job not found', async () => {
+  it('getStatus should return null when job not found and no stored result', async () => {
     (queue.getJob as jest.Mock).mockResolvedValue(null);
+    (queue.getStoredResult as jest.Mock).mockResolvedValue(null);
     const status = await service.getStatus('nonexistent');
     expect(status).toBeNull();
   });
 
-  it('cancel should call queue.removeJob and return true', async () => {
+  it('getStatus should return stored result when job removed', async () => {
+    (queue.getJob as jest.Mock).mockResolvedValue(null);
+    (queue.getStoredResult as jest.Mock).mockResolvedValue({
+      title: 'Saved',
+      url: 'https://saved.example',
+    });
+
+    const status = await service.getStatus('someid');
+
+    // runtime assertion (keeps test readable)
+    expect(status).not.toBeNull();
+
+    // assign to a new local variable so TS knows it's non-null
+    const s = status! as any;
+
+    expect(s.state).toBe('completed');
+    // result may be typed `any`/unknown — cast to any to access title
+    expect((s.result as any).title).toBe('Saved');
+  });
+
+  it('cancel should call queue.setCancelFlag and return true', async () => {
     (queue.removeJob as jest.Mock).mockResolvedValue(true);
     const ok = await service.cancel('1');
+    expect(queue.setCancelFlag).toHaveBeenCalledWith('1');
     expect(ok).toBe(true);
   });
 });

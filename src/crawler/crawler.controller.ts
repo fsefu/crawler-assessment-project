@@ -34,6 +34,7 @@ export class CrawlerController {
     if (!status) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
     return status;
   }
+  
 
   @Delete('cancel/:id')
   @ApiOperation({ summary: 'Cancel job' })
