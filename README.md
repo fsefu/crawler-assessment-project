@@ -36,66 +36,80 @@ This project intentionally keeps crawler logic easy to extend.
 
 ## Quick start (development)
 
-1. Clone and install
+### A — Run with Docker (recommended)
+
+This runs the app + Redis via `docker compose` and is the easiest way to get an environment identical across machines.
+
+1. Build images (fresh build, pulls base images):
 
 ```bash
-git clonehttps://github.com/fsefu/crawler-assessment-project
-cd crawler-assessment-project
+docker compose build --no-cache --pull
+```
+
+2. Start the stack (app + redis):
+
+```bash
+docker compose up -d
+```
+
+3. Watch application logs:
+
+```bash
+docker compose logs -f app
+```
+
+4. Verify the app is up:
+
+```bash
+# confirms HTTP 200 on root
+curl -i http://localhost:3000/
+# or open http://localhost:3000/api in a browser for Swagger
+```
+
+**Notes for Docker**
+- The compose file in this repo starts a Redis service. If you already run Redis on the host, either stop it (so the compose file can bind port `6379`) or edit `docker-compose.yml` to remove the `ports:` mapping (Redis will still be reachable from the app inside the compose network).
+- If you enable Puppeteer (`USE_PUPPETEER=true`), ensure the Docker image includes Chromium (the provided Dockerfile does) or set `CHROME_EXECUTABLE_PATH` to a system Chrome binary.
+
+---
+
+### B — Run locally with npm (development)
+
+If you prefer to run and iterate locally (fast edits, hot reload):
+
+1. Install dependencies:
+
+```bash
 npm install
 ```
 
-2. Copy & edit environment variables
+2. Copy the example env and modify if required:
 
 ```bash
 cp .env.example .env
-# then edit .env to fit your environment
+# edit .env: set REDIS_HOST/REDIS_PORT, USE_PUPPETEER, PROXY_LIST, etc.
 ```
 
-3. Start Redis (recommended via Docker Compose)
-
-See the example `docker-compose.yml` below. Then:
+3. Start Redis (locally or via Docker). Example using Docker:
 
 ```bash
-docker compose up -d
+docker run -d --name local-redis -p 6379:6379 redis:7-alpine
 ```
 
-4. Start the app
+(Or use your system Redis; ensure `.env` points to it.)
+
+4. Start the Nest app in development mode (watch mode):
 
 ```bash
 npm run start:dev
-# or production
-# npm run build && npm run start:prod
 ```
 
-Server default: `http://localhost:3000` — Swagger UI available at `http://localhost:3000/api`.
-
----
-
-## Docker Compose (example)
-
-```yaml
-version: '3.8'
-services:
-  redis:
-    image: redis:7-alpine
-    container_name: nestjs-crawler-redis
-    ports:
-      - '6379:6379'
-    command: ['redis-server', '--appendonly', 'no']
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-```
-
-Run:
+5. Verify:
 
 ```bash
-docker compose up -d
+curl -i http://localhost:3000/
+# open http://localhost:3000/api for Swagger
 ```
-
----
+Server default: `http://localhost:3000` — Swagger UI available at `http://localhost:3000/api`.
 
 ## Environment variables (`.env.example`)
 
@@ -252,37 +266,6 @@ Alternative: run `mitmproxy` or any proxy you control and observe traffic.
 
 ---
 
-## Troubleshooting
-
-### `MODULE_NOT_FOUND: puppeteer-extra-plugin-stealth`
-
-Install the required packages:
-
-```bash
-npm install --save puppeteer puppeteer-extra puppeteer-extra-plugin-stealth proxy-chain bottleneck
-# or use puppeteer-core + system Chrome and set CHROME_EXECUTABLE_PATH
-```
-
-If you prefer not to install Puppeteer (for tests/CI), keep `USE_PUPPETEER=false` — the app will use Axios/Cheerio fallback.
-
-### Jobs stuck in `active`
-
-- Increase `JOB_TIMEOUT_MS` (some pages take longer to load).
-- If `networkidle2` never occurs, the code falls back to `domcontentloaded`. Shorten timeouts or use `?wait=true&timeout=45000` for debugging.
-- Ensure Redis and worker are running and worker logs show `active/completed/failed` events.
-
-### Proxy auth failures (HTTP 407)
-
-- Verify `PROXY_LIST` entries include credentials when required: `http://user:pass@host:port`.
-- If using `proxy-chain` it will anonymize authenticated proxies for Chromium; if `proxy-chain` is missing we fall back to raw proxy string which may not support auth.
-
-### Chromium launch errors
-
-- For Docker or low-memory environments add `--no-sandbox` and `--disable-dev-shm-usage` (already present in launch args).
-- Or install system Chromium and use `puppeteer-core` + `CHROME_EXECUTABLE_PATH` to reduce downloads and runtime issues.
-
----
-
 ## Tests
 
 Run all tests with coverage:
@@ -290,22 +273,22 @@ Run all tests with coverage:
 ```bash
 npm test
 ```
+Run unit tests only
+
+```bash
+npm run test:unit
+```
+
+Run end-to-end
+
+```bash
+npm run test:e2e
+```
+
 
 Unit tests mock Axios or QueueService by default. Puppeteer-related code is lazy-required — keep `USE_PUPPETEER=false` in test env or mock runtime requires.
 
 ---
-
-## Example scripts (`package.json`)
-
-```json
-"scripts": {
-  "start": "node dist/main.js",
-  "start:dev": "nest start --watch",
-  "build": "nest build",
-  "test": "jest --coverage",
-  "test:e2e": "jest --config ./test/jest-e2e.json"
-}
-```
 
 ---
 
@@ -318,24 +301,4 @@ Unit tests mock Axios or QueueService by default. Puppeteer-related code is lazy
 - **Proxy provider & costs** — using residential rotating proxies is often costly; design a health-check and blacklisting for failing proxies.
 
 ---
-
-## Contributing & next steps
-
-If you want, I can also generate:
-
-- `.env.example` file
-- `docker-compose.yml`
-- PR-style patch or zip of Part 2 code
-- Additional integration tests that spin up Redis and run a real Puppeteer flow (requires Chromium in CI)
-
-Tell me which of those you'd like next and I will generate it.
-
----
-
-## License
-
-Choose a license (e.g. MIT) and add `LICENSE` to the repo.
-
----
-
 _End of README_
